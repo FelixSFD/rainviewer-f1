@@ -10,7 +10,7 @@ import BackToTopButton from './components/BackToTopButton';
 import { LayerCacheItem } from "./layer-cache-item.ts";
 
 const App = () => {
-  const [map, setMap] = useState();
+  const mapRef = useRef()
   const position: LatLngExpression = [37.0902, -95.7129];
   const cartoAttribution = `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, 
   &copy; <a href="https://carto.com/attributions">CARTO</a>`;
@@ -40,8 +40,8 @@ const App = () => {
         attribution: "<a href='https://www.rainviewer.com/api.html' target='_blank'>RainViewer</a>"
       });
 
-      if (mapRef.current) {
-        tileLayer.addTo(mapRef.current!);
+      if (mapRef?.current) {
+        tileLayer.addTo(mapRef.current);
       }
 
       let cacheItem = new LayerCacheItem(timestamp, tileLayer);
@@ -182,7 +182,7 @@ milliseconds). This is used to update the UTC time displayed on the app. */
         </Toolbar>
       </AppBar>
       <div style={{ marginTop: '80px' }}>
-        <MapContainer id='map' center={position} zoom={5} minZoom={3} preferCanvas={true} ref={map}>
+        <MapContainer id='map' center={position} zoom={5} minZoom={3} preferCanvas={true} ref={mapRef}>
           <LayersControl position='topright'>
             <LayersControl.BaseLayer checked name='OSM'>
               <TileLayer
