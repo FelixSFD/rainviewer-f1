@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from "react";
 import { DateTime } from 'luxon';
 import { AppBar, CircularProgress, FormControl, FormLabel, MenuItem, Select, Toolbar, Typography } from '@mui/material';
 import { MapContainer, TileLayer, LayersControl } from 'react-leaflet';
 import './App.css';
-import { LatLngExpression } from 'leaflet';
+import { LatLngExpression, Map as LMap } from 'leaflet';
 import GeoJsonMap from './components/f1geojson';
 import F1Schedule from './components/F1Schedule';
 import BackToTopButton from './components/BackToTopButton';
+import { LayerCacheItem } from "./layer-cache-item.ts";
 
 const App = () => {
+  const mapRef = useRef<LMap>()
   const position: LatLngExpression = [37.0902, -95.7129];
   const cartoAttribution = `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, 
   &copy; <a href="https://carto.com/attributions">CARTO</a>`;
@@ -16,8 +18,95 @@ const App = () => {
   const [timeUTC, setTimeUTC] = useState<number>(0);
   const [dateTime, setDateTime] = useState<string>('');
 
+  var currentTimestamp = 0;
+  var timestamps: number[] = [];
+  var cachedLayers: LayerCacheItem[] = [];
+
   useEffect(() => {
-    const fetchInitialTime = async () => {
+    const setCurrentTimestamp = (timestamp: number) => {
+      setTimeUTC((prev) => timestamp);
+
+      const utcDate = DateTime.fromSeconds(timestamp).toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS);
+      setDateTime((prev) => utcDate);
+
+      currentTimestamp = timestamp;
+    };
+
+    const loadLayerCacheItem = (timestamp: number) => {
+      let tileLayer = L.tileLayer('https://rw-rainviewer-proxy.felixsfd.de/v2/radar/' + timestamp + '/256/{z}/{x}/{y}/4/1_0.png', {
+        maxZoom: 18,
+        minZoom: 3,
+        opacity: 0.2,
+        attribution: "<a href='https://www.rainviewer.com/api.html' target='_blank'>RainViewer</a>"
+      });
+
+      if (mapRef.current) {
+        tileLayer.addTo(mapRef.current!);
+      }
+
+      let cacheItem = new LayerCacheItem(timestamp, tileLayer);
+      cachedLayers.push(cacheItem);
+      return cacheItem;
+    };
+
+    const showLayerWithTimestamp = (timestamp: number) => {
+      const showLayer = cachedLayers.find(ci => ci.timestamp == timestamp);
+      if (showLayer) {
+        //console.log("bring layer to front: " + timestamp);
+        showLayer.layer.bringToFront();
+
+        timestamps?.filter(t => t != timestamp).forEach(t => {
+          //console.log("bring layer to BACK: " + t);
+          const hideLayer = cachedLayers.find(ci => ci.timestamp == t);
+          hideLayer?.layer.bringToBack();
+        });
+      } else {
+        console.log("Layer not found!")
+      }
+    };
+
+    const showNextOverlay = () => {
+      console.log("showNextOverlay timestamps: " + timestamps)
+      if (timestamps == undefined || timestamps?.length == 0) {
+        console.log("timestamps empty or undefined")
+        return;
+      }
+
+      const tmpTs = currentTimestamp;
+
+      if (tmpTs == undefined) {
+        setCurrentTimestamp(timestamps[0]);
+      }
+      console.log("Current timestamp: " + tmpTs)
+      const tsIndex = timestamps.indexOf(tmpTs);
+
+      if (tsIndex >= 0) {
+        const newIndex = (tsIndex + 1) % timestamps.length;
+        console.log("new index: " + newIndex + "; => " + timestamps[newIndex]);
+        setCurrentTimestamp(timestamps[newIndex]);
+        showLayerWithTimestamp(timestamps[newIndex]);
+      } else {
+        console.log("use first layer: ", timestamps[0]);
+        setCurrentTimestamp(timestamps[0]);
+        showLayerWithTimestamp(timestamps[0]);
+      }
+    };
+
+    const fetchAvailableTimestamps = async () => {
+      console.log("fetchAvailableTimestamps")
+      try {
+        const response = await fetch('https://rw-rainviewer-proxy.felixsfd.de/api/maps.json');
+        const result = await response.json();
+        timestamps = result;
+        cachedLayers = timestamps?.map(t => loadLayerCacheItem(t));
+        console.log("Feched timestamps: " + result);
+      } catch (error) {
+        console.error('Error fetching timestamps:', error);
+      }
+    };
+
+    /* Download list of available timestamps */
+    /*const fetchInitialTime = async () => {
       try {
         const response = await fetch('https://api.rainviewer.com/public/weather-maps.json');
         const data = await response.json();
@@ -31,21 +120,25 @@ const App = () => {
       } catch (error) {
         console.error('Error fetching initial time:', error);
       }
-    };
+    };*/
+
     /* Setting up an interval that calls the `fetchInitialTime` function every 5 minutes (60 seconds * 5000
 milliseconds). This is used to update the UTC time displayed on the app. */
-    const interval = setInterval(fetchInitialTime, 60 * 5000);
+    const fetchTimestampsInterval = setInterval(fetchAvailableTimestamps, 60 * 5000);
+    const nextLayerInterval = setInterval(showNextOverlay, 1000);
     console.log('Interval Updated');
     const storedTheme = localStorage.getItem('rainviewerTheme');
     if (storedTheme !== null) {
       setRainviewerTheme(storedTheme); // Parse the stored value as an integer
     }
+
     // Fetch initial time on component mount
-    fetchInitialTime();
+    fetchAvailableTimestamps();
 
     // Clean up the interval on component unmount
     return () => {
-      clearInterval(interval);
+      clearInterval(fetchTimestampsInterval);
+      clearInterval(nextLayerInterval);
     };
   }, []);
 
@@ -89,7 +182,7 @@ milliseconds). This is used to update the UTC time displayed on the app. */
         </Toolbar>
       </AppBar>
       <div style={{ marginTop: '80px' }}>
-        <MapContainer id='map' center={position} zoom={5} minZoom={3} preferCanvas={true}>
+        <MapContainer id='map' ref={mapRef} center={position} zoom={5} minZoom={3} preferCanvas={true}>
           <LayersControl position='topright'>
             <LayersControl.BaseLayer checked name='OSM'>
               <TileLayer
@@ -126,7 +219,7 @@ milliseconds). This is used to update the UTC time displayed on the app. */
       {dateTime ? (
         <AppBar component='footer' position='sticky' sx={{ top: 'auto', bottom: 0 }}>
           <Toolbar sx={{ justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
-            <Typography variant='h6'>Weather Last Updated: {dateTime}</Typography>
+            <Typography variant='h6'>Weather at: {dateTime}</Typography>
             <Typography style={{ textAlign: 'center' }}>
               Data provided by{' '}
               <a href='https://www.rainviewer.com/api.html' target='_blank' rel='noopener noreferrer'>
