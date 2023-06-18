@@ -3,14 +3,14 @@ import { DateTime } from 'luxon';
 import { AppBar, CircularProgress, FormControl, FormLabel, MenuItem, Select, Toolbar, Typography } from '@mui/material';
 import { MapContainer, TileLayer, LayersControl } from 'react-leaflet';
 import './App.css';
-import { LatLngExpression, Map as LMap } from 'leaflet';
+import { LatLngExpression, L } from 'leaflet';
 import GeoJsonMap from './components/f1geojson';
 import F1Schedule from './components/F1Schedule';
 import BackToTopButton from './components/BackToTopButton';
 import { LayerCacheItem } from "./layer-cache-item.ts";
 
 const App = () => {
-  const mapRef = useRef()
+  const [mapRef, setMapRef] = useState(null)
   const position: LatLngExpression = [37.0902, -95.7129];
   const cartoAttribution = `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, 
   &copy; <a href="https://carto.com/attributions">CARTO</a>`;
@@ -24,10 +24,10 @@ const App = () => {
 
   useEffect(() => {
     const setCurrentTimestamp = (timestamp: number) => {
-      setTimeUTC((prev) => timestamp);
+      setTimeUTC(() => timestamp);
 
       const utcDate = DateTime.fromSeconds(timestamp).toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS);
-      setDateTime((prev) => utcDate);
+      setDateTime(() => utcDate);
 
       currentTimestamp = timestamp;
     };
@@ -40,8 +40,8 @@ const App = () => {
         attribution: "<a href='https://www.rainviewer.com/api.html' target='_blank'>RainViewer</a>"
       });
 
-      if (mapRef?.current) {
-        tileLayer.addTo(mapRef.current);
+      if (mapRef != null) {
+        tileLayer.addTo(mapRef);
       }
 
       let cacheItem = new LayerCacheItem(timestamp, tileLayer);
@@ -151,6 +151,7 @@ milliseconds). This is used to update the UTC time displayed on the app. */
       <path d='M128.605 135.536c-11.854 0-21.499 9.645-21.499 21.499s9.645 21.499 21.499 21.499c11.855 0 21.5-9.645 21.5-21.499s-9.645-21.499-21.5-21.499zm0 29.998c-4.687 0-8.499-3.813-8.499-8.499s3.813-8.499 8.499-8.499 8.5 3.813 8.5 8.499-3.813 8.499-8.5 8.499z' />
     </svg>
   );
+  // @ts-ignore
   return (
     <main id='App'>
       <AppBar component='nav' position='absolute'>
