@@ -1,16 +1,16 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { DateTime } from 'luxon';
 import { AppBar, CircularProgress, FormControl, FormLabel, MenuItem, Select, Toolbar, Typography } from '@mui/material';
 import { MapContainer, TileLayer, LayersControl } from 'react-leaflet';
 import './App.css';
-import { LatLngExpression, L } from 'leaflet';
+import { LatLngExpression } from 'leaflet';
 import GeoJsonMap from './components/f1geojson';
 import F1Schedule from './components/F1Schedule';
 import BackToTopButton from './components/BackToTopButton';
 import { LayerCacheItem } from "./layer-cache-item.ts";
 
 const App = () => {
-  const [mapRef, setMapRef] = useState(null)
+  const [mapRef] = useState(null)
   const position: LatLngExpression = [37.0902, -95.7129];
   const cartoAttribution = `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, 
   &copy; <a href="https://carto.com/attributions">CARTO</a>`;
@@ -33,6 +33,7 @@ const App = () => {
     };
 
     const loadLayerCacheItem = (timestamp: number) => {
+      // @ts-ignore
       let tileLayer = L.tileLayer('https://rw-rainviewer-proxy.felixsfd.de/v2/radar/' + timestamp + '/256/{z}/{x}/{y}/4/1_0.png', {
         maxZoom: 18,
         minZoom: 3,
