@@ -10,7 +10,7 @@ import BackToTopButton from './components/BackToTopButton';
 import { LayerCacheItem } from "./layer-cache-item.ts";
 
 const App = () => {
-  const mapRef = useRef<LMap>()
+  const [map, setMap] = useState();
   const position: LatLngExpression = [37.0902, -95.7129];
   const cartoAttribution = `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, 
   &copy; <a href="https://carto.com/attributions">CARTO</a>`;
@@ -182,7 +182,7 @@ milliseconds). This is used to update the UTC time displayed on the app. */
         </Toolbar>
       </AppBar>
       <div style={{ marginTop: '80px' }}>
-        <MapContainer id='map' ref={mapRef} center={position} zoom={5} minZoom={3} preferCanvas={true}>
+        <MapContainer id='map' center={position} zoom={5} minZoom={3} preferCanvas={true} ref={map}>
           <LayersControl position='topright'>
             <LayersControl.BaseLayer checked name='OSM'>
               <TileLayer
